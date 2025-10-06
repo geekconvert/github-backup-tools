@@ -1,17 +1,8 @@
+Under these unprecendeted times, noone knows when which service will get blocked in your country so keep a backup of all repos at your working system or any vps using this repo.
+
 # GitHub Backup Tools
 
 Automated GitHub repository backup and cloning tools with scheduling support for macOS.
-
-## Features
-
-- **Complete Repository Backup**: Mirror clones with all branches, tags, and references
-- **Working Copy Cloning**: Normal clones for development work
-- **Automated Scheduling**: Daily backups using macOS launchd
-- **Organization Support**: Backup repos from multiple GitHub organizations
-- **Filtering Options**: Include/exclude forks and archived repositories
-- **Wiki Backup**: Optional wiki repository backup
-- **Git LFS Support**: Large File Storage object backup
-- **Progress Tracking**: Detailed logging and progress indicators
 
 ## Scripts
 
@@ -43,6 +34,18 @@ Creates working copies of all your GitHub repositories for development.
 ```bash
 ./clone_all_repos.sh
 ```
+
+## Features
+
+- **Complete Repository Backup**: Mirror clones with all branches, tags, and references
+- **Working Copy Cloning**: Normal clones for development work
+- **Automated Scheduling**: Daily backups using macOS launchd
+- **Organization Support**: Backup repos from multiple GitHub organizations
+- **Filtering Options**: Include/exclude forks and archived repositories
+- **Wiki Backup**: Optional wiki repository backup
+- **Git LFS Support**: Large File Storage object backup
+- **Progress Tracking**: Detailed logging and progress indicators
+
 
 ## Setup
 
@@ -92,68 +95,7 @@ chmod +x backup_github.sh clone_all_repos.sh
 
 ## Automated Scheduling
 
-Set up daily automated backups using macOS launchd by creating a launch agent:
-
-1. **Create a launch agent plist file** at `~/Library/LaunchAgents/com.github.backup.daily.plist`:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.github.backup.daily</string>
-    <key>Program</key>
-    <string>/path/to/your/backup_github.sh</string>
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Hour</key>
-        <integer>11</integer>
-        <key>Minute</key>
-        <integer>40</integer>
-    </dict>
-    <key>WorkingDirectory</key>
-    <string>/path/to/your/script/directory</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>PATH</key>
-        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
-        <key>HOME</key>
-        <string>/Users/yourusername</string>
-    </dict>
-</dict>
-</plist>
-```
-
-2. **Load the launch agent:**
-```bash
-launchctl load ~/Library/LaunchAgents/com.github.backup.daily.plist
-```
-
-3. **Verify it's loaded:**
-```bash
-launchctl list | grep github
-```
-
-### Manual Testing
-
-Test the scheduled job manually:
-```bash
-launchctl start com.github.backup.daily
-```
-
-### Management Commands
-
-```bash
-# Stop scheduled backups
-launchctl unload ~/Library/LaunchAgents/com.github.backup.daily.plist
-
-# Restart scheduled backups
-launchctl load ~/Library/LaunchAgents/com.github.backup.daily.plist
-
-# Check job status
-launchctl list | grep github
-```
+Based on your systems you can schedule this daily at sometime in your system.
 
 ## Output Structure
 
@@ -180,47 +122,6 @@ github-repos-YYYYMMDD_HHMMSS/
 └── organization/
     ├── org-repo1/
     └── ...
-```
-
-## Logging
-
-Scripts provide detailed output and progress tracking:
-
-- **Console output**: Real-time progress indicators and status updates
-- **launchd logs**: When using automated scheduling, logs are captured in system logs
-- **Error reporting**: Clear error messages for troubleshooting
-
-**View launchd logs:**
-```bash
-# Check system logs for your backup job
-log show --predicate 'subsystem == "com.apple.launchd"' --info --last 1h | grep github
-
-# Or check Console.app for detailed system logging
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Permission denied errors**: Ensure scripts have execute permissions (`chmod +x *.sh`)
-2. **Command not found**: Check PATH in environment variables or install missing tools
-3. **Authentication failures**: Run `gh auth login` and grant repo scope
-4. **launchd issues**: Check Console.app or system logs for error details
-
-### Debugging
-
-```bash
-# Test GitHub CLI authentication
-gh auth status
-
-# Check available commands
-which gh git jq
-
-# Test script manually
-./backup_github.sh
-
-# Check system logs for launchd issues
-log show --predicate 'subsystem == "com.apple.launchd"' --info --last 1h | grep github
 ```
 
 ## License
