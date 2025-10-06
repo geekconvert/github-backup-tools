@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# github-backup.sh
-# Mirror-clone all GitHub repos for your user (and optional organizations).
-# Preserves all refs (branches, tags). Optionally backs up wikis and Git LFS.
+
+# Mirror-clone all GitHub repos for your user (and optional organizations). Preserves all refs (branches, tags). Optionally backs up wikis and Git LFS.
 # Requires: bash, gh, git, jq  (git-lfs optional)
 
 set -Eeuo pipefail
@@ -10,26 +9,21 @@ set -Eeuo pipefail
 #             CONFIG                #
 #####################################
 
-# Organizations to include (optional). Leave empty for none.
+# Organizations to include (optional). Leave empty for none. 
 # Example: declare -a ORG_LIST=(myorg anotherorg)
 declare -a ORG_LIST=()
-
 # What to include
 INCLUDE_FORKS=false
 INCLUDE_ARCHIVED=false
 INCLUDE_WIKIS=true
 INCLUDE_LFS=true
-
 # Use SSH or HTTPS for cloning (SSH recommended if you have keys set up)
 CLONE_PROTOCOL=ssh   # ssh|https
 
 # Backup location
 BACKUP_DIR="${PWD}/github-backup-$(date +%Y%m%d_%H%M%S)"
 
-#####################################
-#        UTIL / DEP CHECKS          #
-#####################################
-
+# This is a utility function for checking if required commands are available on the system before the script runs.
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "Missing required command: $1" >&2
@@ -60,8 +54,14 @@ OWNER_USER="$(gh api user -q .login)"
 
 # Build owners list safely
 OWNERS=("$OWNER_USER")
-if [[ ${#ORG_LIST[@]:-0} -gt 0 ]]; then
-  OWNERS+=("${ORG_LIST[@]}")
+
+# check if ORG_LIST has any elements
+ORG_COUNT=${#ORG_LIST[@]:-0}  # Get array length, default to 0 if unset
+if [[ $ORG_COUNT -gt 0 ]]; then
+  # Add all organizations to the OWNERS array
+  for org in "${ORG_LIST[@]}"; do
+    OWNERS+=("$org")
+  done
 fi
 
 #####################################
@@ -149,6 +149,9 @@ clone_repo_mirror() {
       fi
     fi
   fi
+  
+  # Add separator line after processing each repository
+  echo "----------------"
 }
 
 # Filter fork/archived per flags
@@ -172,10 +175,23 @@ for owner in "${OWNERS[@]}"; do
   [[ "$owner" != "$OWNER_USER" ]] && kind="org"
   echo "== Enumerating ${kind} repos for: ${owner} =="
 
-  # Emit: full_name|ssh_url|clone_url|has_wiki|fork|archived
-  list_repos "$owner" "$kind" | jq -r \
-    '[.full_name, .ssh_url, .clone_url, (.has_wiki|tostring), (.fork|tostring), (.archived|tostring)] | join("|")' |
-  while IFS='|' read -r full_name ssh_url https_url has_wiki is_fork is_archived; do
+  # Get all repo data into an array first
+  echo "  Fetching repository list..."
+  
+  # Read lines into array using a more compatible method
+  repo_lines=()
+  while IFS= read -r line; do
+    repo_lines+=("$line")
+  done < <(list_repos "$owner" "$kind" | jq -r \
+    '[.full_name, .ssh_url, .clone_url, (.has_wiki|tostring), (.fork|tostring), (.archived|tostring)] | join("|")')
+  
+  echo "  Found ${#repo_lines[@]} repositories"
+  
+  # Process each repository
+  for repo_line in "${repo_lines[@]}"; do
+    # Split the pipe-delimited line into variables
+    IFS='|' read -r full_name ssh_url https_url has_wiki is_fork is_archived <<< "$repo_line"
+    
     if filter_repo "$is_fork" "$is_archived"; then
       clone_repo_mirror "$full_name" "$ssh_url" "$https_url" "$has_wiki" "$is_fork"
     else

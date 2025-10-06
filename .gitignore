@@ -1,0 +1,29 @@
+# Backup directories
+github-backup-*/
+github-repos-*/
+
+# Log files
+logs/*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# macOS system files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Test data
+test_*.json
+
+# Local configuration overrides
+local_config.sh
+
+# SSH keys (if any)
+*.pem
+*.key
