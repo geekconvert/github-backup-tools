@@ -44,20 +44,6 @@ Creates working copies of all your GitHub repositories for development.
 ./clone_all_repos.sh
 ```
 
-### `daily_backup.sh`
-Wrapper script for automated daily backups with logging and cleanup.
-
-**Features:**
-- Timestamped logging
-- Environment setup
-- Automatic cleanup of old backups
-- Error handling and notifications
-
-**Usage:**
-```bash
-./daily_backup.sh
-```
-
 ## Setup
 
 ### Prerequisites
@@ -101,16 +87,42 @@ CLONE_PROTOCOL=ssh   # ssh|https
 ### Make Scripts Executable
 
 ```bash
-chmod +x backup_github.sh clone_all_repos.sh daily_backup.sh
+chmod +x backup_github.sh clone_all_repos.sh
 ```
 
 ## Automated Scheduling
 
-Set up daily automated backups at 11:40 AM using macOS launchd:
+Set up daily automated backups using macOS launchd by creating a launch agent:
 
-1. **Copy the launch agent configuration:**
-```bash
-cp com.github.backup.daily.plist ~/Library/LaunchAgents/
+1. **Create a launch agent plist file** at `~/Library/LaunchAgents/com.github.backup.daily.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.github.backup.daily</string>
+    <key>Program</key>
+    <string>/path/to/your/backup_github.sh</string>
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>11</integer>
+        <key>Minute</key>
+        <integer>40</integer>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/path/to/your/script/directory</string>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+        <key>HOME</key>
+        <string>/Users/yourusername</string>
+    </dict>
+</dict>
+</plist>
 ```
 
 2. **Load the launch agent:**
@@ -139,8 +151,8 @@ launchctl unload ~/Library/LaunchAgents/com.github.backup.daily.plist
 # Restart scheduled backups
 launchctl load ~/Library/LaunchAgents/com.github.backup.daily.plist
 
-# View logs
-tail -f logs/backup_*.log
+# Check job status
+launchctl list | grep github
 ```
 
 ## Output Structure
@@ -172,20 +184,28 @@ github-repos-YYYYMMDD_HHMMSS/
 
 ## Logging
 
-All scripts provide detailed logging:
+Scripts provide detailed output and progress tracking:
 
-- **Backup logs**: `logs/backup_YYYYMMDD_HHMMSS.log`
-- **launchd logs**: `logs/launchd_stdout.log`, `logs/launchd_stderr.log`
-- **Progress indicators**: Real-time status updates
+- **Console output**: Real-time progress indicators and status updates
+- **launchd logs**: When using automated scheduling, logs are captured in system logs
+- **Error reporting**: Clear error messages for troubleshooting
+
+**View launchd logs:**
+```bash
+# Check system logs for your backup job
+log show --predicate 'subsystem == "com.apple.launchd"' --info --last 1h | grep github
+
+# Or check Console.app for detailed system logging
+```
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Permission denied errors**: Ensure scripts have execute permissions
-2. **Command not found**: Check PATH in environment variables
+1. **Permission denied errors**: Ensure scripts have execute permissions (`chmod +x *.sh`)
+2. **Command not found**: Check PATH in environment variables or install missing tools
 3. **Authentication failures**: Run `gh auth login` and grant repo scope
-4. **launchd issues**: Check logs in `logs/` directory
+4. **launchd issues**: Check Console.app or system logs for error details
 
 ### Debugging
 
@@ -199,8 +219,8 @@ which gh git jq
 # Test script manually
 ./backup_github.sh
 
-# View recent logs
-ls -la logs/
+# Check system logs for launchd issues
+log show --predicate 'subsystem == "com.apple.launchd"' --info --last 1h | grep github
 ```
 
 ## License
