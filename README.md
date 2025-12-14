@@ -7,7 +7,7 @@ Automated GitHub repository backup and cloning tools with scheduling support for
 ## Scripts
 
 ### `backup_github.sh`
-Creates mirror backups of all your GitHub repositories.
+Creates mirror backups of all your GitHub repositories. Subsequent runs update the same backup directory so only new refs are transferred.
 
 **Features:**
 - Mirror clones (preserves all refs)
@@ -85,6 +85,9 @@ INCLUDE_LFS=true
 
 # Protocol selection
 CLONE_PROTOCOL=ssh   # ssh|https
+
+# Optional override for backup location
+BACKUP_DIR_OVERRIDE="/path/to/existing/backup"
 ```
 
 ### Make Scripts Executable
@@ -101,7 +104,7 @@ Based on your systems you can schedule this daily at sometime in your system.
 
 ### Mirror Backups (`backup_github.sh`)
 ```
-github-backup-YYYYMMDD_HHMMSS/
+github-backup/
 ├── username/
 │   ├── repo1.git/          # Mirror clone
 │   ├── repo1.wiki.git/     # Wiki backup

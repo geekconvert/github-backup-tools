@@ -20,8 +20,8 @@ INCLUDE_ARCHIVED=false
 # Use SSH or HTTPS for cloning (SSH recommended if you have keys set up)
 CLONE_PROTOCOL=ssh   # ssh|https
 
-# Clone location
-CLONE_DIR="${PWD}/github-repos-$(date +%Y%m%d_%H%M%S)"
+# Clone location (fixed so subsequent runs update the same directory)
+CLONE_DIR="${PWD}/cloneAll"
 
 #####################################
 #        UTIL / DEP CHECKS          #
@@ -99,7 +99,7 @@ repo_clone_url() {
 #####################################
 
 clone_repo_working() {
-  local full_name="$1" ssh_url="$2" https_url="$3" is_fork="$4" is_archived="$5"
+  local idx="$1" total="$2" full_name="$3" ssh_url="$4" https_url="$5" is_fork="$6" is_archived="$7"
 
   local owner="${full_name%/*}"
   local repo="${full_name#*/}"
@@ -112,7 +112,7 @@ clone_repo_working() {
 
   # Clone or update the repo
   if [[ ! -d "$repo_path" ]]; then
-    echo "→ Cloning ${full_name}"
+    echo "[${idx}/${total}] → Cloning ${full_name}"
     if git clone "$url" "$repo_path"; then
       echo "   ✅ Successfully cloned ${full_name}"
       
@@ -135,21 +135,21 @@ clone_repo_working() {
       echo "   ❌ Failed to clone ${full_name}"
     fi
   else
-    echo "→ Updating ${full_name}"
+    echo "[${idx}/${total}] → Updating ${full_name}"
     cd "$repo_path"
     
     # Fetch latest changes
-    if git fetch origin; then
+    if git fetch --prune origin; then
       # Get current branch
       local current_branch
       current_branch=$(git branch --show-current 2>/dev/null || echo "")
       
       if [[ -n "$current_branch" ]]; then
-        # Try to fast-forward if on a branch
+        # Fast-forward only to avoid clobbering local work
         if git merge --ff-only "origin/$current_branch" 2>/dev/null; then
-          echo "   ✅ Updated to latest ${current_branch}"
+          echo "   ✅ Fast-forwarded ${current_branch}"
         else
-          echo "   ⚠️  Has local changes - fetch completed but not merged"
+          echo "   ⚠️  Local changes or divergence - fetched only"
         fi
       else
         echo "   ℹ️  On detached HEAD - fetched latest changes"
@@ -205,17 +205,20 @@ for owner in "${OWNERS[@]}"; do
   done < <(list_repos "$owner" "$kind" | jq -r \
     '[.full_name, .ssh_url, .clone_url, (.fork|tostring), (.archived|tostring)] | join("|")')
   
-  echo "  Found ${#repo_lines[@]} repositories"
+  total_repos=${#repo_lines[@]}
+  echo "  Found ${total_repos} repositories"
   
+  repo_idx=0
   # Process each repository
   for repo_line in "${repo_lines[@]}"; do
+    ((repo_idx++))
     # Split the pipe-delimited line into variables
     IFS='|' read -r full_name ssh_url https_url is_fork is_archived <<< "$repo_line"
     
     if filter_repo "$is_fork" "$is_archived"; then
-      clone_repo_working "$full_name" "$ssh_url" "$https_url" "$is_fork" "$is_archived"
+      clone_repo_working "$repo_idx" "$total_repos" "$full_name" "$ssh_url" "$https_url" "$is_fork" "$is_archived"
     else
-      echo "Skipping ${full_name} (fork/archived filter)"
+      echo "[${repo_idx}/${total_repos}] Skipping ${full_name} (fork/archived filter)"
       echo "----------------"
     fi
   done

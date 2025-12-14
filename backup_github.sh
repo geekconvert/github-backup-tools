@@ -20,8 +20,8 @@ INCLUDE_LFS=true
 # Use SSH or HTTPS for cloning (SSH recommended if you have keys set up)
 CLONE_PROTOCOL=ssh   # ssh|https
 
-# Backup location
-BACKUP_DIR="${PWD}/github-backup-$(date +%Y%m%d_%H%M%S)"
+# Backup location (subsequent runs reuse the same directory)
+BACKUP_DIR="${BACKUP_DIR_OVERRIDE:-${PWD}/github-backup}"
 
 # This is a utility function for checking if required commands are available on the system before the script runs.
 need_cmd() {
@@ -46,8 +46,12 @@ if ! gh auth status >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ -d "$BACKUP_DIR" ]]; then
+  echo "Updating existing backup at: $BACKUP_DIR"
+else
+  echo "Creating backup directory at: $BACKUP_DIR"
+fi
 mkdir -p "$BACKUP_DIR"
-echo "Backing up to: $BACKUP_DIR"
 
 # Determine your username via gh
 OWNER_USER="$(gh api user -q .login)"
@@ -100,7 +104,7 @@ repo_clone_url() {
 #####################################
 
 clone_repo_mirror() {
-  local full_name="$1" ssh_url="$2" https_url="$3" has_wiki="$4" is_fork="$5"
+  local full_name="$1" ssh_url="$2" https_url="$3" has_wiki="$4" is_fork="$5" index="$6" total="$7"
 
   local owner="${full_name%/*}"
   local repo="${full_name#*/}"
@@ -112,10 +116,10 @@ clone_repo_mirror() {
 
   # Mirror the main repo
   if [[ ! -d "${dest}/${repo}.git" ]]; then
-    echo "→ Cloning ${full_name}"
+    echo "→ [${index}/${total}] Cloning ${full_name}"
     git clone --mirror --no-hardlinks "$url" "${dest}/${repo}.git"
   else
-    echo "→ Updating ${full_name}"
+    echo "→ [${index}/${total}] Updating ${full_name}"
     git --git-dir="${dest}/${repo}.git" remote update --prune
   fi
 
@@ -186,17 +190,27 @@ for owner in "${OWNERS[@]}"; do
     '[.full_name, .ssh_url, .clone_url, (.has_wiki|tostring), (.fork|tostring), (.archived|tostring)] | join("|")')
   
   echo "  Found ${#repo_lines[@]} repositories"
-  
-  # Process each repository
+
+  # Splits repositories into skipped and processed groups
+  filtered_repo_lines=()
   for repo_line in "${repo_lines[@]}"; do
-    # Split the pipe-delimited line into variables
     IFS='|' read -r full_name ssh_url https_url has_wiki is_fork is_archived <<< "$repo_line"
-    
+
     if filter_repo "$is_fork" "$is_archived"; then
-      clone_repo_mirror "$full_name" "$ssh_url" "$https_url" "$has_wiki" "$is_fork"
+      filtered_repo_lines+=("$repo_line")
     else
       echo "Skipping ${full_name} (fork/archived filter)"
+      echo "----------------"
     fi
+  done
+
+  total_repos=${#filtered_repo_lines[@]}
+  index=0
+
+  for repo_line in "${filtered_repo_lines[@]}"; do
+    IFS='|' read -r full_name ssh_url https_url has_wiki is_fork is_archived <<< "$repo_line"
+    ((index++))
+    clone_repo_mirror "$full_name" "$ssh_url" "$https_url" "$has_wiki" "$is_fork" "$index" "$total_repos"
   done
 done
 
