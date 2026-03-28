@@ -27,3 +27,6 @@ local_config.sh
 # SSH keys (if any)
 *.pem
 *.key
+
+cloneAll
+github-backup
